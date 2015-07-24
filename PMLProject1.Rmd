@@ -1,0 +1,146 @@
+Practical Machine Learning Course Project Writeup
+========================================================
+
+Backgrouond
+===========
+
+  This is an R Markdown document using knitr to generate the HTML report. 
+  
+  Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: (http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+  
+  
+Data
+====
+  The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+  
+  The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+  
+  The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+Required Libraries
+==================
+## Please make sure you have these libraries installed.
+```{r eval=FALSE }
+install.packages("e1071")
+install.packages("ggplot", repos = 'http://cran.us.r-project.org')
+install.packages("lattice")
+install.packages("RCurl")
+install.packages("dplyr")
+install.packages("plyr")
+install.packages("caret")
+```
+## load the libraries
+```{r echo=TRUE}
+library(e1071)
+library(ggplot2)
+library(lattice)
+library(RCurl)
+library(dplyr)
+library(grid)
+library(plyr)
+library(caret)
+```
+
+
+## download the data file from the website.
+```{r echo=TRUE, eval=FALSE}
+trainfileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(trainfileUrl, destfile = "./pml-training.csv", method="libcurl")
+testfileUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(testfileUrl, destfile = "./pml-testing.csv", method="libcurl")
+```
+
+## Loading and preprocessing the data
+load the data file into a data.frame
+```{r echo=TRUE}
+colList <- c(3,4,6:11,37:49,60:68,84:86,102,113:124,140,151:160)
+colList <- c(5, 8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)
+colList <- c(5:13,15:16,18:160)
+colList <- c(5, 8:11, 37:49, 60:68, 84:86, 113:124, 151:160)
+colList <- c(5, 8:10, 37:48, 60:68, 84:86, 113:124, 151:160)
+exColList <- c(1,2,3,4,14,17,26,89,92, 101,127,130,139)
+set.seed(1234)
+traindatafilename <- "pml-training.csv"
+trainrawdata <- read.csv(traindatafilename, sep=",", header=TRUE,skipNul=TRUE, na.strings=c("NA"))
+trainIndex1 <- createDataPartition(y=trainrawdata[,160], p=0.80, list=FALSE)
+traindata1 <- trainrawdata[trainIndex1,colList]
+traindata2 <- trainrawdata[-trainIndex1,colList]
+#traindata1 <- trainrawdata[,colList]
+
+
+testdatafilename <- "pml-testing.csv"
+testrawdata <- read.csv(testdatafilename, sep=",", header=TRUE)
+testdata1 <- testrawdata[,colList]
+#ggplot(traindata1, aes(x=roll_forearm, y=pitch_forearm)) + geom_point(color="steelblue", size=4, alpha=1/2) + facet_grid( . ~ classe)
+#ggplot(traindata1, aes(x=roll_forearm, y=yaw_forearm)) + geom_point(color="steelblue", size=4, alpha=1/2) + facet_grid( . ~ classe)
+
+```
+
+```{r eval=FALSE}
+str(traindata1)
+summary(traindata1)
+#head(testdata1)
+
+```
+
+```{r eval=FALSE}
+str(testdata1)
+summary(testdata1)
+head(testdata1)
+
+```
+
+## Train for the model with the train data set.
+```{r fig.width=14, fig.height=14 }
+#fit1 <- train(classe ~ ., method="rpart", data=traindata1)
+train_control <- trainControl(method="adaptive_cv", number=10, repeats=5)
+fit1 <- train(classe ~ ., method="rpart2", data=traindata1, trControl=train_control)
+#fit1 <- train(classe ~ ., method="ada", data=traindata1, trControl=train_control)
+#fit1 <- train(classe ~ ., method="bartMachine", data=traindata1, trControl=train_control)
+fit1
+print(fit1$finalModel)
+plot(fit1$finalModel, uniform=TRUE, main="Classification Tree")
+text(fit1$finalModel, use.n=TRUE, all=TRUE, cex=0.8)
+
+```
+
+
+## Now predict with the test data set.
+First predict the train data to check for the accuracy
+```{r}
+prediction2 <- predict(fit1, newdata=traindata2)
+summary(prediction2)
+str(prediction2)
+
+```
+
+Check how good is the prediction of the train data
+```{r}
+confusionMatrix(prediction2, traindata2$classe)
+table(prediction2)
+```
+
+Finally, predict the test data.
+```{r}
+prediction1 <- predict(fit1, newdata=testdata1)
+summary(prediction1)
+table(prediction1)
+
+```
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+```
+
+
+
+
+
+
+
